@@ -1,0 +1,29 @@
+Package: rknnim
+Type: Package
+Title: Rolling KNN Imputation of Methylation Data
+Version: 0.1.0
+Authors@R: c(
+    person(
+      "Hung", "Pham",
+      role = c("aut", "cre")
+    )
+  )
+Description: Impute methylation beta/m-values matrix using KNN imputation.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Suggests: 
+    matrixStats,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+RoxygenNote: 7.3.2
+LinkingTo: 
+    Rcpp
+Imports: 
+    checkmate,
+    impute (>= 1.82.0),
+    Rcpp
+Remotes: 
+    bioc::release/impute
+Depends: 
+    R (>= 3.5)
