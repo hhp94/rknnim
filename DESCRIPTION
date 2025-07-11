@@ -27,3 +27,5 @@ Remotes:
     bioc::release/impute
 Depends: 
     R (>= 3.5)
+URL: https://github.com/hhp94/rknnim
+BugReports: https://github.com/hhp94/rknnim/issues
