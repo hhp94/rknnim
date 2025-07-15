@@ -8,7 +8,7 @@ rknnim.internal <- function(
     colmax = 0.8,
     rng.seed = 362436069) {
   checkmate::assert_matrix(obj, mode = "numeric")
-  checkmate::assert_true(sum(is.infinite(khanmiss1)) == 0)
+  checkmate::assert_true(sum(is.infinite(obj)) == 0)
 
   n.overlap <- round(n.feat * overlap)
 
