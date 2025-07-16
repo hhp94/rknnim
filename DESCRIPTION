@@ -5,6 +5,7 @@ Version: 0.1.0
 Authors@R: c(
     person(
       "Hung", "Pham",
+      email = "first.last@example.com",
       role = c("aut", "cre")
     )
   )
@@ -20,8 +21,11 @@ RoxygenNote: 7.3.2
 LinkingTo: 
     Rcpp
 Imports: 
+    carrier,
     checkmate,
     impute (>= 1.82.0),
+    mirai,
+    purrr,
     Rcpp
 Remotes: 
     bioc::release/impute

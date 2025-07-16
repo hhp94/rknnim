@@ -11,5 +11,7 @@ khanmiss1 <- as.matrix(
 colnames(khanmiss1) <- names(khanmiss)[3:ncol(khanmiss)]
 row.names(khanmiss1) <- khanmiss$X[2:nrow(khanmiss)]
 
-is.na(khanmiss1) |> rowSums() |> sort(decreasing = TRUE)
+is.na(khanmiss1) |>
+  rowSums() |>
+  sort(decreasing = TRUE)
 usethis::use_data(khanmiss1, overwrite = TRUE)
