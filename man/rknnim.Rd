@@ -7,7 +7,7 @@
 rknnim(
   obj,
   n.feat,
-  overlap = 0.1,
+  n.overlap = 10,
   coord = NULL,
   k = 10,
   rowmax = 0.5,
@@ -22,8 +22,8 @@ rknnim(
 
 \item{n.feat}{Integer specifying the number of features (rows) per imputation window.}
 
-\item{overlap}{Numeric value between 0 and 1 indicating the fraction of overlap
-between consecutive windows (default: 0.1).}
+\item{n.overlap}{Integer specifying the number of features of overlap
+between consecutive windows (default: 10).}
 
 \item{coord}{Optional coordinate matrix (default: NULL). Currently unused in the function.}
 
