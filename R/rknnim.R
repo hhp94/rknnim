@@ -8,8 +8,8 @@
 #'
 #' @param obj A numeric matrix where rows represent features and columns represent samples.
 #' @param n.feat Integer specifying the number of features (rows) per imputation window.
-#' @param overlap Numeric value between 0 and 1 indicating the fraction of overlap
-#'   between consecutive windows (default: 0.1).
+#' @param n.overlap Integer specifying the number of features of overlap
+#'   between consecutive windows (default: 10).
 #' @param coord Optional coordinate matrix (default: NULL). Currently unused in the function.
 #' @inheritParams impute::impute.knn
 #' @inheritParams purrr::map
@@ -26,12 +26,12 @@
 #' set.seed(123)
 #' mat <- matrix(rnorm(100), nrow = 20, ncol = 5)
 #' mat[sample(100, 10)] <- NA
-#' imputed <- rknnim(mat, n.feat = 10, overlap = 0.2, k = 5)
+#' imputed <- rknnim(mat, n.feat = 10, n.overlap = 2, k = 5)
 #' }
 rknnim <- function(
     obj,
     n.feat,
-    overlap = 0.1,
+    n.overlap = 10,
     coord = NULL,
     k = 10,
     rowmax = 0.5,
@@ -45,7 +45,8 @@ rknnim <- function(
     warning("Input object is wide, this is unexpected. Rows should be features and samples should be columns")
   }
   checkmate::assert_true(sum(is.infinite(obj)) == 0)
-  n.overlap <- round(n.feat * overlap)
+  checkmate::assert_integerish(n.feat, lower = 2, upper = nrow(obj), len = 1, null.ok = FALSE)
+  checkmate::assert_integerish(n.overlap, lower = 0, upper = n.feat - 1, len = 1, null.ok = FALSE)
 
   # To-dos: weighted, write intermediary to files, C++
   # C++ version would be idx 0
@@ -80,13 +81,15 @@ rknnim <- function(
   imputed <- purrr::map(
     seq_along(start),
     fn(
-      function(i) impute_knn(
-        obj = obj[start[i]:end[i], ],
-        k = k,
-        rowmax = rowmax,
-        colmax = colmax,
-        rng.seed = rng.seed
-      ),
+      function(i) {
+        impute_knn(
+          obj = obj[start[i]:end[i], ],
+          k = k,
+          rowmax = rowmax,
+          colmax = colmax,
+          rng.seed = rng.seed
+        )
+      },
       impute_knn = impute_knn,
       obj = obj,
       start = start,
