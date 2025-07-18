@@ -26,7 +26,7 @@
 #' set.seed(123)
 #' mat <- matrix(rnorm(100), nrow = 20, ncol = 5)
 #' mat[sample(100, 10)] <- NA
-#' imputed <- rknnim(mat, n.feat = 10, overlap = 0.2, k = 5)
+#' imputed <- rknnim(mat, n.feat = 10, n.overlap = 2, k = 5)
 #' }
 rknnim <- function(
     obj,
