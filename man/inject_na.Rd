@@ -4,32 +4,20 @@
 \alias{inject_na}
 \title{Inject NA Values into a Matrix}
 \usage{
-inject_na(
-  obj,
-  hash = NULL,
-  prop,
-  min_na,
-  max_na,
-  c_thresh = 0.9,
-  r_thresh = 0.9,
-  max_iter = 1000
-)
+inject_na(obj, num_na = 100, rowmax = 0.5, colmax = 0.8, max_iter = 1000)
 }
 \arguments{
-\item{obj}{A matrix or a character string specifying the path to a file to be read
-using `safe_read()`. The matrix should contain data where NAs can be injected.}
+\item{obj}{A numeric matrix where rows represent features and columns represent samples.}
 
-\item{hash}{Optional hash value for validation when reading from a file using `safe_read()`.}
+\item{num_na}{The number of missing values used to estimate prediction quality. Must be a positive integer.}
 
-\item{prop}{Proportion of non-NA elements to convert to NA. Must be between 0 and 1 (exclusive of 0).}
+\item{rowmax}{The maximum percent missing data allowed in any row
+    (default 50\%). For any rows with more than \code{rowmax}\% missing
+    are imputed using the overall mean per sample.}
 
-\item{min_na}{Minimum number of NAs to inject. Must be a positive integer.}
-
-\item{max_na}{Maximum number of NAs to inject. Must be a positive integer and at least `min_na`.}
-
-\item{c_thresh}{Maximum allowed proportion of missing values per column after injection (default: 0.9).}
-
-\item{r_thresh}{Maximum allowed proportion of missing values per row after injection (default: 0.9).}
+\item{colmax}{The maximum percent missing data allowed in any column
+    (default 80\%). If any column has more than \code{colmax}\% missing data,
+    the program halts and reports an error.}
 
 \item{max_iter}{Maximum number of iterations to attempt finding valid NA positions (default: 1000).}
 }
@@ -38,19 +26,20 @@ A vector of integer indices indicating the positions in the matrix
 where NAs should be injected.
 }
 \description{
-This function randomly selects positions in a matrix to inject NA values, ensuring that
-the injection does not exceed specified missingness thresholds for rows and columns.
+This function randomly selects positions in a matrix to inject a specified number of NA values,
+ensuring that the injection does not exceed specified missingness thresholds for rows and columns.
 It attempts to find a valid set of positions within a maximum number of iterations.
 }
 \details{
-The function first computes the number of NAs to inject based on `prop`, clamped between `min_na` and `max_na`.
+The function uses the `num_na` parameter to determine the number of NAs to inject.
 It then repeatedly samples random positions from existing non-NA elements and checks if injecting NAs
 at those positions would exceed the missingness thresholds for any row or column (accounting for existing NAs).
 If no valid set is found within `max_iter` attempts, an error is thrown.
 }
 \examples{
 mat <- matrix(1:100, nrow = 10, ncol = 10)
-na_positions <- inject_na(mat, prop = 0.1, min_na = 5, max_na = 15)
+# Inject 10 NAs
+na_positions <- inject_na(mat, num_na = 10)
 mat[na_positions] <- NA
 
 }

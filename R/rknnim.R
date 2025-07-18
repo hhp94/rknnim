@@ -81,13 +81,15 @@ rknnim <- function(
   imputed <- purrr::map(
     seq_along(start),
     fn(
-      function(i) impute_knn(
-        obj = obj[start[i]:end[i], ],
-        k = k,
-        rowmax = rowmax,
-        colmax = colmax,
-        rng.seed = rng.seed
-      ),
+      function(i) {
+        impute_knn(
+          obj = obj[start[i]:end[i], ],
+          k = k,
+          rowmax = rowmax,
+          colmax = colmax,
+          rng.seed = rng.seed
+        )
+      },
       impute_knn = impute_knn,
       obj = obj,
       start = start,

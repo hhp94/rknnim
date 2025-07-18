@@ -15,7 +15,8 @@ Encoding: UTF-8
 LazyData: true
 Suggests: 
     matrixStats,
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    yardstick
 Config/testthat/edition: 3
 RoxygenNote: 7.3.2
 LinkingTo: 
@@ -26,9 +27,8 @@ Imports:
     impute (>= 1.82.0),
     mirai,
     purrr,
-    qs2,
     Rcpp,
-    rlang
+    tibble
 Remotes: 
     bioc::release/impute
 Depends: 
