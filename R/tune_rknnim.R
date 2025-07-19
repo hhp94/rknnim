@@ -134,6 +134,8 @@ inject_na <- function(
 #' # View metrics for the first result
 #' results$metrics[[1]]
 #' }
+#'
+#' @export
 tune_rknnim <- function(
     obj,
     parameters,

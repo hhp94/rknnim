@@ -3,5 +3,6 @@
 export(inject_na)
 export(mean_impute_row)
 export(rknnim)
+export(tune_rknnim)
 importFrom(impute,impute.knn)
 useDynLib(rknnim, .registration = TRUE)
