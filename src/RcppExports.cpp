@@ -10,20 +10,20 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// rcpp_sum
-double rcpp_sum(NumericVector v);
-RcppExport SEXP _rknnim_rcpp_sum(SEXP vSEXP) {
+// row_index
+IntegerMatrix row_index(int n);
+RcppExport SEXP _rknnim_row_index(SEXP nSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type v(vSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_sum(v));
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    rcpp_result_gen = Rcpp::wrap(row_index(n));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_rknnim_rcpp_sum", (DL_FUNC) &_rknnim_rcpp_sum, 1},
+    {"_rknnim_row_index", (DL_FUNC) &_rknnim_row_index, 1},
     {NULL, NULL, 0}
 };
 

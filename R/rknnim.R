@@ -51,8 +51,6 @@ rknnim <- function(
   # To-dos: weighted, write intermediary to files, C++
   # C++ version would be idx 0
   idx <- 1
-
-  # max_i > (nrow(obj) - idx)/(n.feat - n.overlap)
   max_step <- ceiling((nrow(obj) - idx) / (n.feat - n.overlap))
   step <- 0:max_step
   start <- idx + (step * n.feat) - (step * n.overlap)
@@ -188,17 +186,28 @@ impute_knn <- function(obj, k, rowmax, colmax, rng.seed) {
 #' @return The matrix with NA values replaced by row means.
 #'
 #' @export
-#'
-#' @examples
-#' \dontrun{
-#' mat <- matrix(c(1, NA, 3, 4, 5, NA), nrow = 2)
-#' imputed <- mean_impute_row(mat)
-#' # Result: row 1 mean ( (1+3)/2 = 2 ) for NA; row 2 mean ( (4+5)/2 = 4.5 ) for NA
-#' }
 mean_impute_row <- function(obj) {
   na_indices <- which(is.na(obj), arr.ind = TRUE)
   row_means <- rowMeans(obj, na.rm = TRUE)
   obj[na_indices] <- row_means[na_indices[, 1]]
+  return(obj)
+}
+
+#' @title Col Mean Imputation
+#'
+#' @description
+#' Imputes missing values (NA) in a matrix by replacing them with the mean of their
+#' respective col, computed excluding NA values.
+#'
+#' @inheritParams rknnim
+#'
+#' @return The matrix with NA values replaced by row means.
+#'
+#' @export
+mean_impute_col <- function(obj) {
+  na_indices <- which(is.na(obj), arr.ind = TRUE)
+  column_means <- colMeans(obj, na.rm = TRUE)
+  obj[na_indices] <- column_means[na_indices[, 2]]
   return(obj)
 }
 
