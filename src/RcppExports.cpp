@@ -21,9 +21,50 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// calc_distant_cpp
+double calc_distant_cpp(NumericVector v1, NumericVector v2, LogicalVector m1, LogicalVector m2);
+RcppExport SEXP _rknnim_calc_distant_cpp(SEXP v1SEXP, SEXP v2SEXP, SEXP m1SEXP, SEXP m2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type v1(v1SEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type v2(v2SEXP);
+    Rcpp::traits::input_parameter< LogicalVector >::type m1(m1SEXP);
+    Rcpp::traits::input_parameter< LogicalVector >::type m2(m2SEXP);
+    rcpp_result_gen = Rcpp::wrap(calc_distant_cpp(v1, v2, m1, m2));
+    return rcpp_result_gen;
+END_RCPP
+}
+// partial_sort_cpp
+IntegerVector partial_sort_cpp(NumericVector distances, int k);
+RcppExport SEXP _rknnim_partial_sort_cpp(SEXP distancesSEXP, SEXP kSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type distances(distancesSEXP);
+    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    rcpp_result_gen = Rcpp::wrap(partial_sort_cpp(distances, k));
+    return rcpp_result_gen;
+END_RCPP
+}
+// impute_knn_cpp
+void impute_knn_cpp(NumericMatrix obj, LogicalMatrix miss, int k);
+RcppExport SEXP _rknnim_impute_knn_cpp(SEXP objSEXP, SEXP missSEXP, SEXP kSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type obj(objSEXP);
+    Rcpp::traits::input_parameter< LogicalMatrix >::type miss(missSEXP);
+    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    impute_knn_cpp(obj, miss, k);
+    return R_NilValue;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_rknnim_row_index", (DL_FUNC) &_rknnim_row_index, 1},
+    {"_rknnim_calc_distant_cpp", (DL_FUNC) &_rknnim_calc_distant_cpp, 4},
+    {"_rknnim_partial_sort_cpp", (DL_FUNC) &_rknnim_partial_sort_cpp, 2},
+    {"_rknnim_impute_knn_cpp", (DL_FUNC) &_rknnim_impute_knn_cpp, 3},
     {NULL, NULL, 0}
 };
 

@@ -27,7 +27,7 @@ test_that("impute_knn_r matches impute.knn on small fixed matrix with k=3 and k=
     colmax = 1.0,
     maxp = nrow(sample_matrix)
   )$data
-  custom <- r_impute(
+  custom <- knn_imp(
     sample_matrix,
     k = 3,
     rowmax = 0.8,
@@ -44,7 +44,7 @@ test_that("impute_knn_r matches impute.knn on small fixed matrix with k=3 and k=
     maxp = nrow(sample_matrix)
   )$data
 
-  custom1 <- r_impute(
+  custom1 <- knn_imp(
     sample_matrix,
     k = k_max,
     rowmax = 0.8,
@@ -52,7 +52,7 @@ test_that("impute_knn_r matches impute.knn on small fixed matrix with k=3 and k=
   )
   expect_equal(orig1, custom1)
   expect_error(
-    r_impute(sample_matrix, k = nrow(sample_matrix), rowmax = 0.8, colmax = 1.0)
+    knn_imp(sample_matrix, k = nrow(sample_matrix), rowmax = 0.8, colmax = 1.0)
   )
 })
 
@@ -67,7 +67,7 @@ test_that("impute_knn_r matches impute.knn on simulated sample_matrix with low m
     maxp = nrow(sample_matrix)
   )$data
 
-  custom <- r_impute(
+  custom <- knn_imp(
     sample_matrix,
     k = 5,
     rowmax = 0.8,
@@ -87,7 +87,7 @@ test_that("impute_knn_r matches impute.knn on simulated sample_matrix with highe
     maxp = nrow(sample_matrix)
   )$data
 
-  custom <- r_impute(
+  custom <- knn_imp(
     sample_matrix,
     k = 5,
     rowmax = 0.8,

@@ -5,3 +5,15 @@ row_index <- function(n) {
     .Call(`_rknnim_row_index`, n)
 }
 
+calc_distant_cpp <- function(v1, v2, m1, m2) {
+    .Call(`_rknnim_calc_distant_cpp`, v1, v2, m1, m2)
+}
+
+partial_sort_cpp <- function(distances, k) {
+    .Call(`_rknnim_partial_sort_cpp`, distances, k)
+}
+
+impute_knn_cpp <- function(obj, miss, k) {
+    invisible(.Call(`_rknnim_impute_knn_cpp`, obj, miss, k))
+}
+

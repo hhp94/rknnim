@@ -1,4 +1,4 @@
-r_impute <- function(obj, k, colmax = 1, rowmax = 0.5, row_imp = TRUE) {
+knn_imp <- function(obj, k, colmax = 1, rowmax = 0.5, row_imp = TRUE) {
   # Pre-conditioning
   stopifnot(
     "Can't have greater or equal number of neighbors to number of rows" = k < nrow(obj)
@@ -26,7 +26,7 @@ r_impute <- function(obj, k, colmax = 1, rowmax = 0.5, row_imp = TRUE) {
     stop("Column(s) missing exceeded colmax. Consider removing column(s) with too high NA %")
   }
   # Impute
-  post_imp <- r_impute_knn(pre_imp_rows, pre_imp_miss, k = k)
+  post_imp <- impute_knn_r(pre_imp_rows, pre_imp_miss, k = k)
   # Final
   ## Reconstruct and impute values still missing
   final <- rbind(mean_imp_rows, post_imp)[row.names(obj), colnames(obj)]
@@ -59,12 +59,12 @@ calc_distant <- function(v1, v2, m1, m2) {
 
 # Just placeholder for the implementation in C++ with partial sort, return index
 # of rows that are closest neighbors
-knn_partial_sort <- function(distance, k) {
-  sorted <- sort(distance)[1:k]
+knn_partial_sort <- function(distances, k) {
+  sorted <- sort(distances)[1:k]
   as.numeric(names(sorted))
 }
 
-r_impute_knn <- function(obj, miss, k) {
+impute_knn_r <- function(obj, miss, k) {
   n <- nrow(obj)
   p <- ncol(obj)
 
