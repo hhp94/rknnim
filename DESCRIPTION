@@ -20,7 +20,8 @@ Suggests:
 Config/testthat/edition: 3
 RoxygenNote: 7.3.2
 LinkingTo: 
-    Rcpp
+    Rcpp,
+    RcppArmadillo
 Imports: 
     carrier,
     checkmate,
