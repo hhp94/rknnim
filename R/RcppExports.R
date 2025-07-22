@@ -14,6 +14,6 @@ partial_sort_cpp <- function(distances, k) {
 }
 
 impute_knn_cpp <- function(obj, miss, k) {
-    invisible(.Call(`_rknnim_impute_knn_cpp`, obj, miss, k))
+    .Call(`_rknnim_impute_knn_cpp`, obj, miss, k)
 }
 

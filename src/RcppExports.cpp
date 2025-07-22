@@ -48,15 +48,16 @@ BEGIN_RCPP
 END_RCPP
 }
 // impute_knn_cpp
-void impute_knn_cpp(NumericMatrix obj, LogicalMatrix miss, int k);
+NumericMatrix impute_knn_cpp(NumericMatrix obj, LogicalMatrix miss, int k);
 RcppExport SEXP _rknnim_impute_knn_cpp(SEXP objSEXP, SEXP missSEXP, SEXP kSEXP) {
 BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< NumericMatrix >::type obj(objSEXP);
     Rcpp::traits::input_parameter< LogicalMatrix >::type miss(missSEXP);
     Rcpp::traits::input_parameter< int >::type k(kSEXP);
-    impute_knn_cpp(obj, miss, k);
-    return R_NilValue;
+    rcpp_result_gen = Rcpp::wrap(impute_knn_cpp(obj, miss, k));
+    return rcpp_result_gen;
 END_RCPP
 }
 

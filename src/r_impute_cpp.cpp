@@ -78,36 +78,64 @@ IntegerVector partial_sort_cpp(NumericVector distances, int k) {
   return result;
 }
 
-// impute_knn_r <- function(obj, miss, k) {
-//   n <- nrow(obj)
-//   p <- ncol(obj)
-//
-//   results <- matrix(0, nrow = n, ncol = p)
-//   miss_rows <- rowSums(miss)
-//   rows_to_impute <- which(miss_rows > 0)
-//   ni <- row_index_r(nrow(miss)) # Rows to calculate distance from
-//   dist_matrix <- matrix(NA, nrow = nrow(ni), ncol = ncol(ni)) # Initialize distant matrix
-
 // [[Rcpp::export]]
-void impute_knn_cpp(NumericMatrix obj, LogicalMatrix miss, int k) {
-  int n = obj.rows();
-  int p = obj.cols();
-
+NumericMatrix impute_knn_cpp(NumericMatrix obj, LogicalMatrix miss, int k) {
+  int n = obj.nrow();
+  int p = obj.ncol();
+  int nr = n - 1; // n-1 rows to check for nearest neighbors
   NumericMatrix results(n, p);
-  std::vector<int> rows_to_impute;
+  IntegerMatrix dist_idx = row_index(n);
+  NumericMatrix dist_matrix(n, nr);
+  IntegerMatrix nearest_neighbors(n, k);
+
   for (int i = 0; i < n; i++) {
     int miss_rows = 0;
     for (int j = 0; j < p; j++) {
-      miss_rows += miss(i,j);
+      miss_rows += miss(i, j);
     }
-    if(miss_rows > 0) {
-      rows_to_impute.push_back(i);
+    if (miss_rows == 0) {
+      continue;
+    }
+    // KNN step 1: calc distance between a row and all other rows (excluding self)
+    for (int j = 0; j < nr; j++) {
+      dist_matrix(i, j) = calc_distant_cpp(
+        obj(i, _),
+        obj(dist_idx(i, j), _),
+        miss(i, _),
+        miss(dist_idx(i, j), _)
+      );
+    }
+    // KNN step 2: get indices of top k neighbors (indices into dist_matrix row)
+    nearest_neighbors(i, _) = partial_sort_cpp(dist_matrix(i, _), k);
+    // KNN step 3: mean impute for each missing column
+    for (int j = 0; j < p; j++) {
+      if (miss(i, j) == true) {
+        double sum_val = 0.0;
+        int count = 0;
+        for (int kk = 0; kk < k; kk++) {
+          int pos = nearest_neighbors(i, kk);
+          int nn_row = dist_idx(i, pos);
+          if (miss(nn_row, j) == false) {
+            sum_val += obj(nn_row, j);
+            count++;
+          }
+        }
+        if (count == 0) {
+          results(i, j) = NA_REAL;
+        } else {
+          results(i, j) = sum_val / count;
+        }
+      }
     }
   }
 
-  Rcout << "Rows to impute: ";
-  for(size_t i = 0; i < rows_to_impute.size(); i++) {
-    Rcout << rows_to_impute[i] << " ";
+  // Compute imputed matrix: obj + results (handling NA properly)
+  NumericMatrix imputed = clone(obj);
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < p; j++) {
+      imputed(i, j) += results(i, j);
+    }
   }
-  Rcout << std::endl;
+
+  return imputed;
 }
