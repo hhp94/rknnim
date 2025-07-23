@@ -11,40 +11,26 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// col_index
-arma::uvec col_index(const arma::uword i, const arma::uword p);
-RcppExport SEXP _rknnim_col_index(SEXP iSEXP, SEXP pSEXP) {
+// distant_matrix
+arma::mat distant_matrix(const arma::mat& obj, const arma::umat& miss);
+RcppExport SEXP _rknnim_distant_matrix(SEXP objSEXP, SEXP missSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::uword >::type i(iSEXP);
-    Rcpp::traits::input_parameter< const arma::uword >::type p(pSEXP);
-    rcpp_result_gen = Rcpp::wrap(col_index(i, p));
-    return rcpp_result_gen;
-END_RCPP
-}
-// calc_distant_arma
-double calc_distant_arma(const arma::vec& v1, const arma::vec& v2, const arma::uvec& m1, const arma::uvec& m2);
-RcppExport SEXP _rknnim_calc_distant_arma(SEXP v1SEXP, SEXP v2SEXP, SEXP m1SEXP, SEXP m2SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::vec& >::type v1(v1SEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type v2(v2SEXP);
-    Rcpp::traits::input_parameter< const arma::uvec& >::type m1(m1SEXP);
-    Rcpp::traits::input_parameter< const arma::uvec& >::type m2(m2SEXP);
-    rcpp_result_gen = Rcpp::wrap(calc_distant_arma(v1, v2, m1, m2));
+    Rcpp::traits::input_parameter< const arma::mat& >::type obj(objSEXP);
+    Rcpp::traits::input_parameter< const arma::umat& >::type miss(missSEXP);
+    rcpp_result_gen = Rcpp::wrap(distant_matrix(obj, miss));
     return rcpp_result_gen;
 END_RCPP
 }
 // find_knn_indices_arma
-arma::uvec find_knn_indices_arma(const arma::vec& distances, const arma::uword k);
+arma::uvec find_knn_indices_arma(const arma::vec& distances, arma::uword k);
 RcppExport SEXP _rknnim_find_knn_indices_arma(SEXP distancesSEXP, SEXP kSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const arma::vec& >::type distances(distancesSEXP);
-    Rcpp::traits::input_parameter< const arma::uword >::type k(kSEXP);
+    Rcpp::traits::input_parameter< arma::uword >::type k(kSEXP);
     rcpp_result_gen = Rcpp::wrap(find_knn_indices_arma(distances, k));
     return rcpp_result_gen;
 END_RCPP
@@ -64,8 +50,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_rknnim_col_index", (DL_FUNC) &_rknnim_col_index, 2},
-    {"_rknnim_calc_distant_arma", (DL_FUNC) &_rknnim_calc_distant_arma, 4},
+    {"_rknnim_distant_matrix", (DL_FUNC) &_rknnim_distant_matrix, 2},
     {"_rknnim_find_knn_indices_arma", (DL_FUNC) &_rknnim_find_knn_indices_arma, 2},
     {"_rknnim_impute_knn_arma", (DL_FUNC) &_rknnim_impute_knn_arma, 3},
     {NULL, NULL, 0}
