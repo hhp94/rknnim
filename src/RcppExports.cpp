@@ -11,15 +11,31 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// distant_matrix
-arma::mat distant_matrix(const arma::mat& obj, const arma::umat& miss);
-RcppExport SEXP _rknnim_distant_matrix(SEXP objSEXP, SEXP missSEXP) {
+// calc_squared_distance
+double calc_squared_distance(const arma::mat& obj, const arma::umat& miss, const arma::uword idx1, const arma::uword idx2, const double total_rows);
+RcppExport SEXP _rknnim_calc_squared_distance(SEXP objSEXP, SEXP missSEXP, SEXP idx1SEXP, SEXP idx2SEXP, SEXP total_rowsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const arma::mat& >::type obj(objSEXP);
     Rcpp::traits::input_parameter< const arma::umat& >::type miss(missSEXP);
-    rcpp_result_gen = Rcpp::wrap(distant_matrix(obj, miss));
+    Rcpp::traits::input_parameter< const arma::uword >::type idx1(idx1SEXP);
+    Rcpp::traits::input_parameter< const arma::uword >::type idx2(idx2SEXP);
+    Rcpp::traits::input_parameter< const double >::type total_rows(total_rowsSEXP);
+    rcpp_result_gen = Rcpp::wrap(calc_squared_distance(obj, miss, idx1, idx2, total_rows));
+    return rcpp_result_gen;
+END_RCPP
+}
+// distant_matrix
+arma::mat distant_matrix(const arma::mat& obj, const arma::umat& miss, const arma::uvec& index);
+RcppExport SEXP _rknnim_distant_matrix(SEXP objSEXP, SEXP missSEXP, SEXP indexSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type obj(objSEXP);
+    Rcpp::traits::input_parameter< const arma::umat& >::type miss(missSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec& >::type index(indexSEXP);
+    rcpp_result_gen = Rcpp::wrap(distant_matrix(obj, miss, index));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -50,7 +66,8 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_rknnim_distant_matrix", (DL_FUNC) &_rknnim_distant_matrix, 2},
+    {"_rknnim_calc_squared_distance", (DL_FUNC) &_rknnim_calc_squared_distance, 5},
+    {"_rknnim_distant_matrix", (DL_FUNC) &_rknnim_distant_matrix, 3},
     {"_rknnim_find_knn_indices_arma", (DL_FUNC) &_rknnim_find_knn_indices_arma, 2},
     {"_rknnim_impute_knn_arma", (DL_FUNC) &_rknnim_impute_knn_arma, 3},
     {NULL, NULL, 0}
