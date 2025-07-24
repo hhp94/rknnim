@@ -3,6 +3,7 @@
 #include <RcppArmadillo.h>
 #include <vector>
 #include <algorithm>
+#include <stdexcept>
 #include <cmath>
 
 using namespace Rcpp;
@@ -13,28 +14,52 @@ double calc_distance(
     const arma::umat &miss,
     const arma::uword idx1,
     const arma::uword idx2,
-    const double total_rows)
+    const double total_rows,
+    const int method)
 {
-  // TRUE only if both values are not missing
-  arma::uvec mask = (miss.col(idx1) == 0) % (miss.col(idx2) == 0);
-  arma::uvec valid_indices = arma::find(mask);
-  const double n_valid = static_cast<double>(valid_indices.n_elem);
-  if (n_valid > 0)
+  // Create a mask for rows where both columns have valid data
+  const arma::uvec mask = (miss.col(idx1) == 0) % (miss.col(idx2) == 0);
+  const arma::uvec valid_indices = arma::find(mask);
+  if (valid_indices.n_elem == 0)
   {
-    const double *col1_ptr = obj.colptr(idx1);
-    const double *col2_ptr = obj.colptr(idx2);
-    double dist = 0.0;
-    for (arma::uword i = 0; i < n_valid; ++i)
+    return arma::datum::inf;
+  }
+  const double n_valid = static_cast<double>(valid_indices.n_elem);
+  const double *col1_ptr = obj.colptr(idx1);
+  const double *col2_ptr = obj.colptr(idx2);
+  double dist = 0.0;
+  // Loop to accumulate the distance metric
+  for (arma::uword i = 0; i < n_valid; ++i)
+  {
+    double diff = col1_ptr[valid_indices(i)] - col2_ptr[valid_indices(i)];
+    switch (method)
     {
-      arma::uword row = valid_indices(i);
-      double diff = col1_ptr[row] - col2_ptr[row];
+    case 0: // Squared Euclidean is sum(diff^2)
+    case 2: // impute.knn is also sum(diff^2)
       dist += diff * diff;
+      break;
+    case 1: // Manhattan is sum(abs(diff))
+      dist += std::abs(diff);
+      break;
+    default:
+      throw std::invalid_argument("0 = Euclid; 1 = Manhattan; 2 = impute.knn.");
     }
-    dist = std::sqrt(dist * (total_rows / n_valid));
-    return dist;
+  }
+  // Post-processing
+  switch (method)
+  {
+  case 0: // Squared Euclidean
+  case 1: // Manhattan
+    dist *= (total_rows / n_valid);
+    break;
+  case 2: // impute.knn
+    dist /= n_valid;
+    break;
+  default:
+    throw std::invalid_argument("0 = Euclid; 1 = Manhattan; 2 = impute.knn.");
   }
 
-  return arma::datum::nan;
+  return dist;
 }
 
 // [[Rcpp::export]]
@@ -42,10 +67,11 @@ arma::mat distance_matrix(
     const arma::mat &obj,
     const arma::umat &miss,
     const arma::uvec &index_miss,
-    const arma::uvec &index_not_miss)
+    const arma::uvec &index_not_miss,
+    const int method)
 {
   arma::mat dist_mat(obj.n_cols, index_miss.n_elem);
-  dist_mat.fill(arma::datum::nan);
+  dist_mat.fill(arma::datum::inf);
   const double total_rows = static_cast<double>(obj.n_rows);
 
   // Compute the lower triangular part of the distance matrix. To optimize computation
@@ -53,32 +79,32 @@ arma::mat distance_matrix(
   // using index_miss. Thus, the matrix columns correspond to index_miss (columns with
   // missing values), while the rows are ordered as index_miss followed by columns not in
   // index_miss (i.e., index_not_miss). This ordering is critical because the concatenated
-  // rows of the distance matrix represent the neighbor indices used for calculations.
+  // rows of the distance matrix represent the neighbor indices used for finding neighbors.
   // For example, if there are 4 columns and columns 1 and 3 have missing values, the
   // distance matrix columns will be [1, 3], and the rows will be [1, 3, 0, 2]. This
   // structure differs from the (i, j) indices, which track the specific row and column
   // positions in the matrix. Just write it out using pencil and paper and you'll get
-  // it.
+  // it. The diagonal elements in the top triangular submatrix are automatically
+  // set to Inf.
   for (arma::uword i = 1; i < index_miss.n_elem; i++)
   {
     for (arma::uword j = 0; j < i; j++)
     {
-      double dist = calc_distance(obj, miss, index_miss(i), index_miss(j), total_rows);
+      double dist = calc_distance(obj, miss, index_miss(i), index_miss(j), total_rows, method);
       dist_mat(i, j) = dist;
-      dist_mat(j, i) = dist;  // Symmetric assignment for the upper triangular part
+      dist_mat(j, i) = dist; // Symmetric assignment for the upper triangular part
     }
   }
 
-  // Compute the remaining part of the matrix (distances between non-missing rows and
-  // missing columns). The diagonal elements in the top-left submatrix are automatically
-  // set to NaN. If all columns have missing values (i.e., the matrix is square with
-  // obj.n_cols == index_miss.n_elem), this loop is skipped.
+  // Compute the remaining part of the matrix (distances between non-missing columns and
+  // missing columns). If all columns have missing values (i.e., the matrix is square with
+  // obj.n_cols == index_miss.n_elem), this loop is automatically skipped.
   for (arma::uword i = index_miss.n_elem; i < obj.n_cols; i++)
   {
     for (arma::uword j = 0; j < index_miss.n_elem; j++)
     {
       // Offset i to index into index_not_miss from 0
-      double dist = calc_distance(obj, miss, index_not_miss(i - index_miss.n_elem), index_miss(j), total_rows);
+      double dist = calc_distance(obj, miss, index_not_miss(i - index_miss.n_elem), index_miss(j), total_rows, method);
       dist_mat(i, j) = dist;
     }
   }
@@ -109,86 +135,61 @@ arma::uvec find_knn_indices_arma(const arma::vec &distances, arma::uword k)
 }
 
 // [[Rcpp::export]]
-arma::mat impute_knn_arma(const arma::mat &obj, const arma::umat &miss, const arma::uword k)
+arma::mat impute_knn_arma(const arma::mat &obj, const arma::umat &miss, const arma::uword k, const int method)
 {
-  const arma::uword n_rows = obj.n_rows;
-  const arma::uword n_cols = obj.n_cols;
-  // CCCCrucial. find just columns with missing.
+  // Only compute distance of rows with any missing and do it once
   arma::urowvec any_missing_r = arma::any(miss, 0);
-  arma::uvec any_missing = arma::conv_to<arma::uvec>::from(any_missing_r);
-  arma::uvec col_index_miss = arma::sort(arma::find(any_missing));
-  arma::uvec col_index_non_miss = arma::sort(arma::find(any_missing == 0));
+  arma::uvec col_index_miss = arma::find(any_missing_r);
   if (col_index_miss.n_elem == 0)
   {
     return obj;
   }
-  // Impute just columns with missing. Most expensive part
   arma::mat imputed = obj;
-  const arma::mat dist_mat = distance_matrix(obj, miss, col_index_miss, col_index_non_miss);
-  return dist_mat;
+  arma::uvec col_index_non_miss = arma::find(any_missing_r == 0);
+  // Longest step. dist_mat holds distance from missing column to all other columns
+  const arma::mat dist_mat = distance_matrix(obj, miss, col_index_miss, col_index_non_miss, method);
+  // dist_mat row index - neighbors - are arranged as col_index_miss then col_index_non_miss
+  // while columns are col_index_miss
+  arma::uvec neighbor_index = arma::join_vert(col_index_miss, col_index_non_miss);
+  // Loop through only missing columns
+  for (arma::uword i = 0; i < col_index_miss.n_elem; i++)
+  {
+    arma::vec dist_vec = dist_mat.col(i);
+    arma::uvec candidate_indices = arma::find_finite(dist_vec);
+    if (candidate_indices.n_elem == 0)
+    {
+      continue;
+    }
+    // Caps `k` to the number of available neighbors.
+    arma::uword n_neighbors = std::min(k, candidate_indices.n_elem);
+    // index of nn relative to dist_vec rows
+    arma::uvec nn_dist_indices = find_knn_indices_arma(dist_vec, n_neighbors);
+    // actual index of nn columns relative to obj columns
+    arma::uvec nn_columns = neighbor_index.elem(nn_dist_indices);
+
+    // now we move on to nn imputation. Find the rows to impute for this column
+    arma::uword target_col_idx = col_index_miss(i);
+    arma::uvec rows_to_impute = arma::find(miss.col(target_col_idx));
+
+    // man, range-for-loop is trippy. kind of not used to this but it works
+    for (arma::uword row_idx : rows_to_impute)
+    {
+      double sum = 0.0;
+      arma::uword count = 0;
+      for (arma::uword neighbor_col_idx : nn_columns)
+      {
+        if (miss(row_idx, neighbor_col_idx) == 0)
+        {
+          sum += obj(row_idx, neighbor_col_idx);
+          count++;
+        }
+      }
+      if (count > 0)
+      {
+        imputed(row_idx, target_col_idx) = sum / count;
+      }
+    }
+  }
+
+  return imputed;
 }
-//   arma::mat dist_mat = distance_matrix(obj, miss);
-//
-//   // 2. Iterate through each column to check for and impute missing values.
-//   for (arma::uword i = 0; i < n_cols; i++) {
-//     // If this column has no missing values, skip it
-//     if (arma::sum(miss.col(i)) == 0) {
-//       continue;
-//     }
-//     // 3. Find the nearest neighbors for the current column 'i'.
-//     // Get the vector of distances from column 'i' to all other columns
-//     arma::vec d_vec = dist_mat.col(i);
-//     // Get indices for sorting
-//     arma::uvec candidate_indices = arma::find_finite(d_vec);
-//
-//     // If no neighbors with finite distance exist, we cannot impute this column.
-//     if (candidate_indices.n_elem == 0) {
-//         // As a fallback, explicitly set any missing values in this column to NaN.
-//         for(arma::uword r = 0; r < n_rows; ++r) {
-//             if(miss(r, i) == 1) {
-//                 imputed(r, i) = arma::datum::nan;
-//             }
-//         }
-//         continue;
-//     }
-//     // Create a sub-vector containing only the finite distances.
-//     arma::vec finite_dists = d_vec.elem(candidate_indices);
-//     // Determine the actual number of neighbors to use (can't be more than available).
-//     arma::uword n_neighbors = std::min(k, finite_dists.n_elem);
-//
-//     // Find the indices of the `n_neighbors` smallest distances within `finite_dists`.
-//     // Note: These are indices *relative* to the `finite_dists` vector.
-//     arma::uvec knn_relative_indices = find_knn_indices_arma(finite_dists, n_neighbors);
-//
-//     // Map these relative indices back to the original matrix column indices.
-//     arma::uvec nn_col_indices = candidate_indices.elem(knn_relative_indices);
-//
-//     // 4. Impute missing values in column 'i' using the identified neighbors.
-//     for (arma::uword r = 0; r < n_rows; r++) {
-//       // Only impute if the value at this position is marked as missing.
-//       if (miss(r, i) == 1) {
-//         double imputation_sum = 0.0;
-//         arma::uword valid_neighbor_count = 0;
-//
-//         // Iterate through the neighbor columns.
-//         for (arma::uword neighbor_idx : nn_col_indices) {
-//           // Check if the neighbor has a non-missing value at this specific row.
-//           if (miss(r, neighbor_idx) == 0) {
-//             imputation_sum += obj(r, neighbor_idx);
-//             valid_neighbor_count++;
-//           }
-//         }
-//
-//         // If we found at least one valid neighbor value, calculate the mean.
-//         if (valid_neighbor_count > 0) {
-//           imputed(r, i) = imputation_sum / valid_neighbor_count;
-//         } else {
-//           // Otherwise, no imputation ispossible for this specific value.
-//           // Set it to NaN. The user can decide how to handle NaNs later.
-//           imputed(r, i) = arma::datum::nan;
-//         }
-//       }
-//     }
-//   }
-//   return imputed;
-// }
