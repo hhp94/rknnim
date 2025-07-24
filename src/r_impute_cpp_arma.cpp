@@ -8,56 +8,105 @@
 
 using namespace Rcpp;
 
+// Helper function for Squared Euclidean (method 0)
 // [[Rcpp::export]]
-double calc_distance(
+double calc_distance_sqeuclid(
     const arma::mat &obj,
     const arma::umat &miss,
     const arma::uword idx1,
     const arma::uword idx2,
-    const double total_rows,
-    const int method)
+    const double total_rows)
 {
-  // Create a mask for rows where both columns have valid data
-  const arma::uvec mask = (miss.col(idx1) == 0) % (miss.col(idx2) == 0);
-  const arma::uvec valid_indices = arma::find(mask);
-  if (valid_indices.n_elem == 0)
-  {
-    return arma::datum::inf;
-  }
-  const double n_valid = static_cast<double>(valid_indices.n_elem);
   const double *col1_ptr = obj.colptr(idx1);
   const double *col2_ptr = obj.colptr(idx2);
+  const arma::uword *miss1_ptr = miss.colptr(idx1);
+  const arma::uword *miss2_ptr = miss.colptr(idx2);
+
   double dist = 0.0;
-  // Loop to accumulate the distance metric
-  for (arma::uword i = 0; i < n_valid; ++i)
-  {
-    double diff = col1_ptr[valid_indices(i)] - col2_ptr[valid_indices(i)];
-    switch (method)
-    {
-    case 0: // Squared Euclidean is sum(diff^2)
-    case 2: // impute.knn is also sum(diff^2)
+  arma::uword n_valid = 0;
+
+  for (arma::uword r = 0; r < obj.n_rows; ++r) {
+    if (miss1_ptr[r] == 0 && miss2_ptr[r] == 0) {
+      double diff = col1_ptr[r] - col2_ptr[r];
       dist += diff * diff;
-      break;
-    case 1: // Manhattan is sum(abs(diff))
-      dist += std::abs(diff);
-      break;
-    default:
-      throw std::invalid_argument("0 = Euclid; 1 = Manhattan; 2 = impute.knn.");
+      ++n_valid;
     }
   }
-  // Post-processing
-  switch (method)
-  {
-  case 0: // Squared Euclidean
-  case 1: // Manhattan
-    dist *= (total_rows / n_valid);
-    break;
-  case 2: // impute.knn
-    dist /= n_valid;
-    break;
-  default:
-    throw std::invalid_argument("0 = Euclid; 1 = Manhattan; 2 = impute.knn.");
+
+  if (n_valid == 0) {
+    return arma::datum::inf;
   }
+
+  const double nn = static_cast<double>(n_valid);
+  dist *= (total_rows / nn);
+
+  return dist;
+}
+
+// Helper function for Manhattan (method 1)
+double calc_distance_manhattan(
+    const arma::mat &obj,
+    const arma::umat &miss,
+    const arma::uword idx1,
+    const arma::uword idx2,
+    const double total_rows)
+{
+  const double *col1_ptr = obj.colptr(idx1);
+  const double *col2_ptr = obj.colptr(idx2);
+  const arma::uword *miss1_ptr = miss.colptr(idx1);
+  const arma::uword *miss2_ptr = miss.colptr(idx2);
+
+  double dist = 0.0;
+  arma::uword n_valid = 0;
+
+  for (arma::uword r = 0; r < obj.n_rows; ++r) {
+    if (miss1_ptr[r] == 0 && miss2_ptr[r] == 0) {
+      double diff = col1_ptr[r] - col2_ptr[r];
+      dist += std::abs(diff);
+      ++n_valid;
+    }
+  }
+
+  if (n_valid == 0) {
+    return arma::datum::inf;
+  }
+
+  const double nn = static_cast<double>(n_valid);
+  dist *= (total_rows / nn);
+
+  return dist;
+}
+
+// Helper function for impute.knn (method 2)
+double calc_distance_knn(
+    const arma::mat &obj,
+    const arma::umat &miss,
+    const arma::uword idx1,
+    const arma::uword idx2,
+    const double total_rows)
+{
+  const double *col1_ptr = obj.colptr(idx1);
+  const double *col2_ptr = obj.colptr(idx2);
+  const arma::uword *miss1_ptr = miss.colptr(idx1);
+  const arma::uword *miss2_ptr = miss.colptr(idx2);
+
+  double dist = 0.0;
+  arma::uword n_valid = 0;
+
+  for (arma::uword r = 0; r < obj.n_rows; ++r) {
+    if (miss1_ptr[r] == 0 && miss2_ptr[r] == 0) {
+      double diff = col1_ptr[r] - col2_ptr[r];
+      dist += diff * diff;
+      ++n_valid;
+    }
+  }
+
+  if (n_valid == 0) {
+    return arma::datum::inf;
+  }
+
+  const double nn = static_cast<double>(n_valid);
+  dist /= nn;
 
   return dist;
 }
@@ -70,6 +119,29 @@ arma::mat distance_matrix(
     const arma::uvec &index_not_miss,
     const int method)
 {
+  using dist_func_t = double (*)(
+      const arma::mat &,
+      const arma::umat &,
+      const arma::uword,
+      const arma::uword,
+      const double);
+
+  dist_func_t calc_dist = nullptr;
+
+  switch (method) {
+  case 0:
+    calc_dist = calc_distance_sqeuclid;
+    break;
+  case 1:
+    calc_dist = calc_distance_manhattan;
+    break;
+  case 2:
+    calc_dist = calc_distance_knn;
+    break;
+  default:
+    throw std::invalid_argument("0 = Euclid; 1 = Manhattan; 2 = impute.knn.");
+  }
+
   arma::mat dist_mat(obj.n_cols, index_miss.n_elem);
   dist_mat.fill(arma::datum::inf);
   const double total_rows = static_cast<double>(obj.n_rows);
@@ -90,7 +162,7 @@ arma::mat distance_matrix(
   {
     for (arma::uword j = 0; j < i; j++)
     {
-      double dist = calc_distance(obj, miss, index_miss(i), index_miss(j), total_rows, method);
+      double dist = calc_dist(obj, miss, index_miss(i), index_miss(j), total_rows);
       dist_mat(i, j) = dist;
       dist_mat(j, i) = dist; // Symmetric assignment for the upper triangular part
     }
@@ -104,7 +176,7 @@ arma::mat distance_matrix(
     for (arma::uword j = 0; j < index_miss.n_elem; j++)
     {
       // Offset i to index into index_not_miss from 0
-      double dist = calc_distance(obj, miss, index_not_miss(i - index_miss.n_elem), index_miss(j), total_rows, method);
+      double dist = calc_dist(obj, miss, index_not_miss(i - index_miss.n_elem), index_miss(j), total_rows);
       dist_mat(i, j) = dist;
     }
   }
@@ -134,6 +206,7 @@ arma::uvec find_knn_indices_arma(const arma::vec &distances, arma::uword k)
   return indices.head(k);
 }
 
+//' @export
 // [[Rcpp::export]]
 arma::mat impute_knn_arma(const arma::mat &obj, const arma::umat &miss, const arma::uword k, const int method)
 {
@@ -150,6 +223,7 @@ arma::mat impute_knn_arma(const arma::mat &obj, const arma::umat &miss, const ar
   const arma::mat dist_mat = distance_matrix(obj, miss, col_index_miss, col_index_non_miss, method);
   // dist_mat row index - neighbors - are arranged as col_index_miss then col_index_non_miss
   // while columns are col_index_miss
+  // return dist_mat;
   arma::uvec neighbor_index = arma::join_vert(col_index_miss, col_index_non_miss);
   // Loop through only missing columns
   for (arma::uword i = 0; i < col_index_miss.n_elem; i++)

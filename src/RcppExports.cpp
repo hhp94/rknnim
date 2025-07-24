@@ -11,9 +11,9 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// calc_distance
-double calc_distance(const arma::mat& obj, const arma::umat& miss, const arma::uword idx1, const arma::uword idx2, const double total_rows, const int method);
-RcppExport SEXP _rknnim_calc_distance(SEXP objSEXP, SEXP missSEXP, SEXP idx1SEXP, SEXP idx2SEXP, SEXP total_rowsSEXP, SEXP methodSEXP) {
+// calc_distance_sqeuclid
+double calc_distance_sqeuclid(const arma::mat& obj, const arma::umat& miss, const arma::uword idx1, const arma::uword idx2, const double total_rows);
+RcppExport SEXP _rknnim_calc_distance_sqeuclid(SEXP objSEXP, SEXP missSEXP, SEXP idx1SEXP, SEXP idx2SEXP, SEXP total_rowsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -22,8 +22,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::uword >::type idx1(idx1SEXP);
     Rcpp::traits::input_parameter< const arma::uword >::type idx2(idx2SEXP);
     Rcpp::traits::input_parameter< const double >::type total_rows(total_rowsSEXP);
-    Rcpp::traits::input_parameter< const int >::type method(methodSEXP);
-    rcpp_result_gen = Rcpp::wrap(calc_distance(obj, miss, idx1, idx2, total_rows, method));
+    rcpp_result_gen = Rcpp::wrap(calc_distance_sqeuclid(obj, miss, idx1, idx2, total_rows));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -70,7 +69,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_rknnim_calc_distance", (DL_FUNC) &_rknnim_calc_distance, 6},
+    {"_rknnim_calc_distance_sqeuclid", (DL_FUNC) &_rknnim_calc_distance_sqeuclid, 5},
     {"_rknnim_distance_matrix", (DL_FUNC) &_rknnim_distance_matrix, 5},
     {"_rknnim_find_knn_indices_arma", (DL_FUNC) &_rknnim_find_knn_indices_arma, 2},
     {"_rknnim_impute_knn_arma", (DL_FUNC) &_rknnim_impute_knn_arma, 4},
