@@ -1,62 +1,67 @@
-#' @title Rolling KNN Imputation
+#' Rolling KNN Imputation
 #'
-#' @description
-#' Performs rolling window KNN imputation on a matrix with missing values.
-#' The function divides the input matrix into overlapping windows along the rows,
-#' imputes each window using KNN imputation, and combines the results by averaging
-#' values in overlapping regions. Any remaining NA values are imputed with row means.
+#' Performs rolling window KNN imputation on a numeric matrix to handle missing values.
+#' The matrix is divided into overlapping windows, and imputation is applied to each window.
+#' Overlapping regions are averaged to produce the final imputed matrix.
 #'
-#' @param obj A numeric matrix where rows represent features and columns represent samples.
-#' @param n.feat Integer specifying the number of features (rows) per imputation window.
-#' @param n.overlap Integer specifying the number of features of overlap
-#'   between consecutive windows (default: 10).
-#' @param coord Optional coordinate matrix (default: NULL). Currently unused in the function.
-#' @inheritParams impute::impute.knn
-#' @inheritParams purrr::map
-#' @param .parallel Logical indicating whether to use parallel processing for imputation
-#'   (default: FALSE). Requires the 'mirai' package if enabled.
+#' @param obj A numeric matrix with \strong{samples in rows} and \strong{features in columns}.
+#' @param n.feat Integer specifying the number of features (columns) in each window. Must be between 2 and the number of columns in \code{obj}.
+#' @param n.overlap Integer specifying the overlap between consecutive windows. Default is 10. Must be between 0 and \code{n.feat - 1}.
+#' @param k An integer specifying the number of nearest neighbors to use for
+#'   imputation. Must be between 1 and the number of columns.
+#' @param colmax A numeric value between 0 and 1. This is the threshold for the
+#'   proportion of missing values in a column. Columns exceeding this
+#'   threshold will be imputed using the column mean instead of k-NN.
+#' @param rowmax A numeric value between 0 and 1. This is the maximum
+#'   allowable proportion of missing values in any single row. If a row
+#'   exceeds this threshold, the function will stop with an error.
+#' @param method A character string specifying the distance metric for k-NN.
+#'   Acceptable values are `"euclidean"`, `"manhattan"`, or `"impute.knn"`.
+#'   Defaults to `"euclidean"`. See [knn_imp()].
+#' @param cores Number of cores to parallelize calculations of distances over. Note: if .parallel is TRUE and cores = n, then each mirai::daemons() process will spawn n cores.
+#' @param .progress Logical indicating whether to show a progress bar. Default is FALSE.
+#' @param .parallel Logical indicating whether to use parallel processing for multiple windows. Default is FALSE.
 #'
 #' @return A numeric matrix of the same dimensions as \code{obj} with missing values imputed.
 #'
-#' @export
-#'
 #' @examples
 #' \dontrun{
-#' # Example matrix with missing values
-#' set.seed(123)
-#' mat <- matrix(rnorm(100), nrow = 20, ncol = 5)
-#' mat[sample(100, 10)] <- NA
-#' imputed <- rknnim(mat, n.feat = 10, n.overlap = 2, k = 5)
+#' data(khanmiss1)
+#' imputed <- rknnim(t(khanmiss1), k = 10, n.feat = 100, n.overlap = 10)
 #' }
+#'
+#' @export
 rknnim <- function(
     obj,
     n.feat,
     n.overlap = 10,
-    coord = NULL,
     k = 10,
-    rowmax = 0.5,
-    colmax = 0.8,
-    rng.seed = 362436069,
+    rowmax = 0.9,
+    colmax = 0.9,
+    cores = 1,
+    method = c("euclidean", "manhattan", "impute.knn"),
     .progress = FALSE,
     .parallel = FALSE) {
-  # pre-conditioning
+  # Pre-conditioning
+  method <- match.arg(method)
   checkmate::assert_matrix(obj, mode = "numeric", null.ok = FALSE)
-  if (nrow(obj) < ncol(obj)) {
-    warning("Input object is wide, this is unexpected. Rows should be features and samples should be columns")
-  }
   checkmate::assert_true(sum(is.infinite(obj)) == 0)
-  checkmate::assert_integerish(n.feat, lower = 2, upper = nrow(obj), len = 1, null.ok = FALSE)
+  checkmate::assert_integerish(n.feat, lower = 2, upper = ncol(obj), len = 1, null.ok = FALSE)
   checkmate::assert_integerish(n.overlap, lower = 0, upper = n.feat - 1, len = 1, null.ok = FALSE)
+  # Warning for parallel core usage with mirai.
+  if (cores > 1 && .parallel) {
+    message("Each parallel core used by mirai daemon will spawn additional cores. If this is not intended, set cores = 1 or .parallel = FALSE and cores = N.")
+  }
 
-  # To-dos: weighted, write intermediary to files, C++
-  # C++ version would be idx 0
-  idx <- 1
-  max_step <- ceiling((nrow(obj) - idx) / (n.feat - n.overlap))
+  # Windowing Logic
+  # Calculate the total number of steps/windows needed.
+  idx <- 1 # R index at 1
+  max_step <- ceiling((ncol(obj) - idx) / (n.feat - n.overlap))
   step <- 0:max_step
   start <- idx + (step * n.feat) - (step * n.overlap)
   end <- start + n.feat - 1
   # Edge case, the end might overshoot the number of rows of the obj
-  n_overshoot <- sum(end > nrow(obj))
+  n_overshoot <- sum(end > ncol(obj))
 
   # In which case trim off the runs that overshoot
   corrected_length <- length(end) - n_overshoot
@@ -64,10 +69,11 @@ rknnim <- function(
   end <- end[idx:corrected_length]
 
   # And make the last window extra wide to cover the full end
-  end[corrected_length] <- nrow(obj)
-  width <- end - start + 1
+  end[corrected_length] <- ncol(obj)
+  # width <- end - start + 1
 
   # Rolling Imputation
+  # Set up the function for mapping (either parallel or sequential).
   if (.parallel) {
     mirai::require_daemons()
     fn <- purrr::in_parallel
@@ -76,18 +82,24 @@ rknnim <- function(
       x
     }
   }
+
+  # Perform imputation for each window using purrr::map.
+  # The anonymous function (function(i) { ... }) is applied to each window index.
+  # Necessary variables are explicitly passed to the parallel environment.
   imputed <- purrr::map(
-    seq_along(start),
+    seq_along(start), # Iterate over the indices of the windows
     fn(
       function(i) {
         impute_knn(
-          obj = obj[start[i]:end[i], ],
+          obj = obj[, start[i]:end[i], drop = FALSE],
           k = k,
           rowmax = rowmax,
           colmax = colmax,
-          rng.seed = rng.seed
+          cores = cores,
+          method = method
         )
       },
+      # Pass all required objects to the parallel function's environment.
       impute_knn = impute_knn,
       obj = obj,
       start = start,
@@ -95,84 +107,187 @@ rknnim <- function(
       k = k,
       rowmax = rowmax,
       colmax = colmax,
-      rng.seed = rng.seed
+      cores = cores,
+      method = method
     ),
     .progress = .progress
   )
 
-  # To get the final matrix. We add a zero matrix with the imputed values, rows
-  # that are outside of the overlap will be added once, while outside of the overlap
-  # will be added twice, then we need the count matrix to calculate the average
-
-  # Initialize a matrix to hold the final results and a matrix to count the contributions
+  # Combine Imputed Windows
+  # Initialize a zero matrix to accumulate the imputed values.
   final_imputed <- matrix(0, nrow = nrow(obj), ncol = ncol(obj))
+  # Initialize a matrix to count how many times each cell has been imputed (for averaging).
   counts <- matrix(0, nrow = nrow(obj), ncol = ncol(obj))
-
-  # Loop through each imputed window.
+  # Loop through each imputed window to combine the results.
   for (i in seq_along(imputed)) {
-    # Row range for the current window
-    rows_to_update <- start[i]:end[i]
+    # Define the column range for the current window.
+    cols_to_update <- start[i]:end[i]
 
-    # Add the imputed values from the window to the accumulator matrix
-    final_imputed[rows_to_update, ] <- final_imputed[rows_to_update, ] + imputed[[i]]
+    # Add the imputed values from the current window to the accumulator matrix.
+    final_imputed[, cols_to_update] <- final_imputed[, cols_to_update] + imputed[[i]]
 
-    # Increment the count for these rows, noting that they've been imputed
-    counts[rows_to_update, ] <- counts[rows_to_update, ] + 1
+    # Increment the count for these columns, indicating they've been imputed.
+    counts[, cols_to_update] <- counts[, cols_to_update] + 1
   }
 
-  # Average the values by dividing the sums by the counts.
+  # Average the values by dividing the accumulated sums by their respective counts.
+  # This handles overlapping regions by averaging their contributions.
   final_imputed <- final_imputed / counts
 
-  # Chunking windows can create NA cols, this final step impute the NA cols with
-  # the mean of the rows
   if (anyNA(final_imputed)) {
-    final_imputed <- mean_impute_row(final_imputed)
+    final_imputed <- mean_impute_col(final_imputed)
   }
 
+  # Restore original column and row names to the final imputed matrix.
   colnames(final_imputed) <- colnames(obj)
-  row.names(final_imputed) <- row.names(obj)
+  rownames(final_imputed) <- rownames(obj)
 
   return(final_imputed)
 }
 
-#' @title KNN Imputation Wrapper
+#' KNN Imputation Wrapper
 #'
-#' @description
-#' A wrapper around \code{impute::impute.knn} that filters out columns with excessive
-#' missing values before performing KNN imputation. If all columns are filtered out,
-#' the original matrix is returned unchanged.
+#' A wrapper function for KNN imputation that filters rows based on missing value proportions before imputing.
+#' Rows with missing proportions exceeding \code{rowmax} are not imputed in this step to avoid
+#' erroring out in [knn_imp()]
 #'
 #' @inheritParams rknnim
 #'
-#' @return The imputed matrix, with good columns imputed and bad columns unchanged.
+#' @return The imputed matrix, with only qualifying rows imputed via KNN; others remain unchanged.
 #'
-#' @importFrom impute impute.knn
-#'
-#' @examples
-#' \dontrun{
-#' mat <- matrix(c(1, NA, 3, 4, 5, NA), nrow = 2)
-#' imputed <- impute_knn(mat, k = 1, rowmax = 0.5, colmax = 0.8, rng.seed = 123)
-#' }
 #' @keywords internal
 #' @noRd
-impute_knn <- function(obj, k, rowmax, colmax, rng.seed) {
+impute_knn <- function(obj, k, rowmax, colmax, cores, method = method) {
   na_mat <- is.na(obj)
-  good_cols <- !(colSums(na_mat) / nrow(na_mat) >= colmax)
-  if (sum(good_cols) == 0) {
+
+  # Determine 'good_rows': rows where the proportion of NAs is less than 'rowmax'.
+  # Rows with too many NAs (as defined by rowmax) are excluded from imputation.
+  good_rows <- rowSums(na_mat) / ncol(na_mat) < rowmax
+
+  # If no rows meet the criteria for imputation, return the original object as is.
+  if (sum(good_rows) == 0) {
     return(obj)
   }
-  imputed_good <- impute.knn(
-    data = obj[, good_cols, drop = FALSE],
+
+  imputed_good <- knn_imp(
+    obj = obj[good_rows, , drop = FALSE],
     k = k,
-    maxp = nrow(obj),
     rowmax = rowmax,
     colmax = colmax,
-    rng.seed = rng.seed
-  )$data
+    cores = cores,
+    method = method
+  )
 
+  # Initialize the result matrix with the original object's values.
   result <- obj
-  result[, good_cols] <- imputed_good
+  # Place the imputed values from 'imputed_good' back into the corresponding 'good_rows'
+  # in the result matrix.
+  result[good_rows, ] <- imputed_good
   return(result)
+}
+
+#' K-Nearest Neighbor (k-NN) Imputation
+#'
+#' This function imputes missing values in a numeric matrix using the k-Nearest
+#' Neighbors algorithm. It follows a two-stage process. First, it imputes
+#' columns with a proportion of missing values below `colmax` using k-NN.
+#' Second, any remaining missing values (including those in columns that
+#' exceeded `colmax`) are imputed using the column mean.
+#'
+#' @details
+#' The distance calculation between columns for identifying nearest neighbors is
+#' scaled based on the number of non-missing value pairs. Specifically, the
+#' raw distance is penalized by scaling it up for columns that have fewer
+#' overlapping observations. This penalizes distances for columns with very few
+#' shared observations used for distance calculations. The
+#' `impute.knn` method averages the distances over the number of matching positions,
+#' so a column with only one matching value to calculate distance from might have a lower
+#' raw distance than a column with many matched values. See also [stats::dist()].
+#'
+#' @inheritParams rknnim
+#'
+#' @return A numeric matrix of the same dimensions as `obj` with missing values
+#'   imputed.
+#'
+#' @export
+#'
+#' @examples
+#' # See ?khanmiss1
+#' data(khanmiss1)
+#' sum(is.na(khanmiss1))
+#'
+#' # Perform k-NN imputation. `khanmiss1` stores genes in the row so we have to t().
+#' # set method to "impute.knn" to mimic how distant is scaled in impute::impute.knn.
+#' imputed <- knn_imp(obj = t(khanmiss1), k = 3, colmax = 0.5, rowmax = 0.8, method = "euclidean")
+#' imputed[1:5, 1:20]
+#' sum(is.na(imputed))
+knn_imp <- function(
+    obj,
+    k,
+    colmax = 0.9,
+    rowmax = 0.9,
+    method = c("euclidean", "manhattan", "impute.knn"),
+    cores = 1) {
+  # Pre-conditioning
+  method <- match.arg(method)
+  checkmate::assert_matrix(obj, mode = "numeric", min.rows = 1, min.cols = 2, col.names = "unique")
+  checkmate::assert_integerish(k, lower = 1, upper = ncol(obj), len = 1)
+  checkmate::assert_integerish(cores, lower = 1, len = 1)
+  checkmate::assert_numeric(colmax, lower = 0, upper = 1, len = 1)
+  checkmate::assert_numeric(rowmax, lower = 0, upper = 1, len = 1)
+
+  if (cores > 16) {
+    warning("Setting cores too high can slow down runtime. Benchmark your data first.")
+  }
+
+  miss <- is.na(obj)
+  if (sum(miss) == 0) {
+    message("No missing data")
+    return(obj)
+  }
+
+  rmiss <- rowSums(miss) / ncol(obj)
+  if (any(rmiss >= rowmax)) {
+    stop("Row(s) missing exceeded rowmax. Remove rows(s) with too high NA %")
+  }
+
+  cmiss <- colSums(miss)
+  if (any(cmiss / nrow(obj) == 1)) {
+    stop("Col(s) with all missing detected. Remove before proceed")
+  }
+
+  # Partition
+  knn_imp_cols <- cmiss / nrow(obj) < colmax
+  pre_imp_cols <- obj[, knn_imp_cols, drop = FALSE]
+  pre_imp_miss <- miss[, knn_imp_cols, drop = FALSE]
+  pre_imp_cmiss <- cmiss[knn_imp_cols]
+  p_pre <- ncol(pre_imp_cols)
+
+  if (any(rowSums(pre_imp_miss) / ncol(pre_imp_cols) == 1)) {
+    stop("Row(s) missing exceeded rowmax. Remove rows(s) with too high NA %")
+  }
+
+  # Impute
+  post_imp <- impute_knn_naive(
+    obj = pre_imp_cols,
+    miss = pre_imp_miss,
+    k = k,
+    n_col_miss = pre_imp_cmiss,
+    method = switch(method,
+      "euclidean" = 0L,
+      "manhattan" = 1L,
+      "impute.knn" = 2L
+    ),
+    cores = cores
+  )
+  colnames(post_imp) <- colnames(pre_imp_cols)
+
+  ## Reconstruct and impute values still missing
+  obj[, knn_imp_cols] <- post_imp
+  if (anyNA(obj)) {
+    return(mean_impute_col(obj))
+  }
+  return(obj)
 }
 
 #' @title Row Mean Imputation

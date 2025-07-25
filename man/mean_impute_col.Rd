@@ -7,7 +7,7 @@
 mean_impute_col(obj)
 }
 \arguments{
-\item{obj}{A numeric matrix where rows represent features and columns represent samples.}
+\item{obj}{A numeric matrix with \strong{samples in rows} and \strong{features in columns}.}
 }
 \value{
 The matrix with NA values replaced by row means.

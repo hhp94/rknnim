@@ -1,10 +1,14 @@
 // [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::plugins(openmp)]]
 
 #include <RcppArmadillo.h>
 #include <vector>
 #include <limits>
 #include <stdexcept>
 #include <cmath>
+#if defined(_OPENMP)
+#include <omp.h>
+#endif
 
 using namespace Rcpp;
 
@@ -20,7 +24,6 @@ struct StrictLowerTriangularMatrix
     {
       throw std::invalid_argument("Size must be at least 1");
     }
-
     // Overflow check for n*(n-1)/2
     size_t max_val = std::numeric_limits<size_t>::max();
     if (size > 1 && (size - 1) > max_val / size)
@@ -88,7 +91,9 @@ double calc_distance_sqeuclid(
 
   double dist = 0.0;
   arma::uword n_valid = 0;
-
+#if defined(_OPENMP)
+#pragma omp simd reduction(+:dist) reduction(+:n_valid)
+#endif
   for (arma::uword r = 0; r < obj.n_rows; ++r)
   {
     if (miss1_ptr[r] == 0 && miss2_ptr[r] == 0)
@@ -125,7 +130,9 @@ double calc_distance_manhattan(
 
   double dist = 0.0;
   arma::uword n_valid = 0;
-
+#if defined(_OPENMP)
+#pragma omp simd reduction(+:dist) reduction(+:n_valid)
+#endif
   for (arma::uword r = 0; r < obj.n_rows; ++r)
   {
     if (miss1_ptr[r] == 0 && miss2_ptr[r] == 0)
@@ -162,7 +169,9 @@ double calc_distance_knn(
 
   double dist = 0.0;
   arma::uword n_valid = 0;
-
+#if defined(_OPENMP)
+#pragma omp simd reduction(+:dist) reduction(+:n_valid)
+#endif
   for (arma::uword r = 0; r < obj.n_rows; ++r)
   {
     if (miss1_ptr[r] == 0 && miss2_ptr[r] == 0)
@@ -212,6 +221,9 @@ arma::vec distance_vector(
   // First iterate through all the missing column. Missing columns has 3 parts: 1) i < index
   // if the current column is < index, then the value has already been calculated, fetch from cache.
   // This will run from 0 to right before index
+#if defined(_OPENMP)
+#pragma omp parallel for
+#endif
   for (arma::uword i = 0; i < index; i++)
   {
     dist_vec(i) = cache(index, i);
@@ -221,6 +233,9 @@ arma::vec distance_vector(
   dist_vec(index) = arma::datum::inf;
   // 3) then from index to index_miss.n_elem, we calculate and cache the values. Automatically
   // skiped for last missing column where all values are fetched from cache
+#if defined(_OPENMP)
+#pragma omp parallel for
+#endif
   for (arma::uword i = index + 1; i < index_miss.n_elem; i++)
   {
     double dist = calc_dist(obj, miss, index_miss(index), index_miss(i), total_rows);
@@ -230,6 +245,9 @@ arma::vec distance_vector(
   // Compute the remaining part of the vector (distance from missing to non missing columns).
   // If all columns have missing values (i.e., the matrix is square with
   // obj.n_cols == index_miss.n_elem), this loop is automatically skipped.
+#if defined(_OPENMP)
+#pragma omp parallel for
+#endif
   for (arma::uword i = index_miss.n_elem; i < obj.n_cols; i++)
   {
     // Offset i to index into index_not_miss from 0
@@ -259,14 +277,29 @@ arma::uvec find_knn_indices_arma(const arma::vec &distances, arma::uword k)
   return indices.head(k);
 }
 
-//' @export
+//' Impute missing values in a matrix using k-nearest neighbors (k-NN)
+//'
+//' This function imputes missing values in a matrix using a k-nearest neighbors
+//' approach based on the specified distance metric. It processes only columns
+//' with missing values, calculating distances to other columns to find the
+//' k-nearest neighbors, and imputes missing values by averaging non-missing
+//' values from these neighbors.
+//'
+//' @param obj Numeric matrix with missing values represented as NA (NaN).
+//' @param miss Logical matrix (0/1) indicating missing values (1 = missing).
+//' @param k Number of nearest neighbors to use for imputation.
+//' @param n_col_miss Integer vector specifying the count of missing values per column.
+//' @param method Integer specifying the distance metric: 0 = Euclidean, 1 = Manhattan, 2 = impute.knn.
+//' @param cores Number of CPU cores to use for parallel processing (default = 1).
+//' @return A matrix with imputed values where missing values were present.
 // [[Rcpp::export]]
 arma::mat impute_knn_naive(
-    const arma::mat &obj, // data with NA (Nan) not prefilled
-    const arma::umat &miss, // missing data matrix
-    const arma::uword k, // n neighbors
+    const arma::mat &obj,        // data with NA (Nan) not prefilled
+    const arma::umat &miss,      // missing data matrix
+    const arma::uword k,         // n neighbors
     const arma::uvec n_col_miss, // vector of missing per column
-    const int method)
+    const int method,
+    int cores = 1)
 {
   // pick the distance method.
   dist_func_t calc_dist = nullptr;
@@ -300,12 +333,16 @@ arma::mat impute_knn_naive(
   arma::uvec neighbor_index = arma::join_vert(col_index_miss, col_index_non_miss);
   // Initialize the cache with size of col_index_miss
   StrictLowerTriangularMatrix cache(col_index_miss.n_elem);
+#if defined(_OPENMP)
+  omp_set_num_threads(cores);
+#else
+  cores = 1;
+#endif
   // Loop through only missing columns
   for (arma::uword i = 0; i < col_index_miss.n_elem; i++)
   {
     arma::vec dist_vec = distance_vector(
-      obj, miss, i, col_index_miss, col_index_non_miss, cache, calc_dist
-    );
+        obj, miss, i, col_index_miss, col_index_non_miss, cache, calc_dist);
     arma::uvec candidate_indices = arma::find_finite(dist_vec);
     if (candidate_indices.n_elem == 0)
     {
@@ -321,11 +358,16 @@ arma::mat impute_knn_naive(
     // now we move on to nn imputation. Find the rows to impute for this column
     arma::uword target_col_idx = col_index_miss(i);
     arma::uvec rows_to_impute = arma::find(miss.col(target_col_idx));
+
     // man, range-for-loop is trippy. kind of not used to this but it works
     for (arma::uword row_idx : rows_to_impute)
     {
       double sum = 0.0;
       arma::uword count = 0;
+
+#if defined(_OPENMP)
+#pragma omp simd reduction(+:sum) reduction(+:count)
+#endif
       for (arma::uword neighbor_col_idx : nn_columns)
       {
         if (miss(row_idx, neighbor_col_idx) == 0)

@@ -38,8 +38,8 @@ set.seed(123)
 sim_data <- sim_mat(n = 50, m = 10)
 
 # Metadata of each features
-sim_data$group_feature[, 1:5]
-sim_data$group_sample[, 1:5]
+sim_data$group_feature[1:5, ]
+sim_data$group_sample[1:5, ]
 
 # View the first few rows and columns of the matrix
 sim_data$input[1:5, 1:5]

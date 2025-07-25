@@ -12,8 +12,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // impute_knn_naive
-arma::mat impute_knn_naive(const arma::mat& obj, const arma::umat& miss, const arma::uword k, const arma::uvec n_col_miss, const int method);
-RcppExport SEXP _rknnim_impute_knn_naive(SEXP objSEXP, SEXP missSEXP, SEXP kSEXP, SEXP n_col_missSEXP, SEXP methodSEXP) {
+arma::mat impute_knn_naive(const arma::mat& obj, const arma::umat& miss, const arma::uword k, const arma::uvec n_col_miss, const int method, int cores);
+RcppExport SEXP _rknnim_impute_knn_naive(SEXP objSEXP, SEXP missSEXP, SEXP kSEXP, SEXP n_col_missSEXP, SEXP methodSEXP, SEXP coresSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -22,13 +22,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::uword >::type k(kSEXP);
     Rcpp::traits::input_parameter< const arma::uvec >::type n_col_miss(n_col_missSEXP);
     Rcpp::traits::input_parameter< const int >::type method(methodSEXP);
-    rcpp_result_gen = Rcpp::wrap(impute_knn_naive(obj, miss, k, n_col_miss, method));
+    Rcpp::traits::input_parameter< int >::type cores(coresSEXP);
+    rcpp_result_gen = Rcpp::wrap(impute_knn_naive(obj, miss, k, n_col_miss, method, cores));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_rknnim_impute_knn_naive", (DL_FUNC) &_rknnim_impute_knn_naive, 5},
+    {"_rknnim_impute_knn_naive", (DL_FUNC) &_rknnim_impute_knn_naive, 6},
     {NULL, NULL, 0}
 };
 

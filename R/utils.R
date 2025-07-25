@@ -27,8 +27,8 @@
 #' sim_data <- sim_mat(n = 50, m = 10)
 #'
 #' # Metadata of each features
-#' sim_data$group_feature[, 1:5]
-#' sim_data$group_sample[, 1:5]
+#' sim_data$group_feature[1:5, ]
+#' sim_data$group_sample[1:5, ]
 #'
 #' # View the first few rows and columns of the matrix
 #' sim_data$input[1:5, 1:5]
@@ -41,7 +41,7 @@ sim_mat <- function(n = 100, m = 100, nchr = 2, ngrp = 1, perc_NA = 0.5, perc_co
     n > 1, m > 1, nchr >= 1, nchr <= 22,
     perc_NA >= 0, perc_NA <= 1, perc_col_NA >= 0, perc_col_NA <= 1
   )
-  if(!rlang::is_installed("matrixStats")) {
+  if (!rlang::is_installed("matrixStats")) {
     stop("sim_mat requires {matrixStats}, which can be installed with install.packages('matrixStats')")
   }
 

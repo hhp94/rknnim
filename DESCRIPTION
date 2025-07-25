@@ -1,7 +1,7 @@
 Package: rknnim
 Type: Package
-Title: Rolling KNN Imputation of Methylation Data
-Version: 0.1.0
+Title: KNN Imputation and Rolling KNN Imputation of Methylation Data
+Version: 0.2.0
 Authors@R: c(
     person(
       "Hung", "Pham",

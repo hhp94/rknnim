@@ -8,61 +8,55 @@ rknnim(
   obj,
   n.feat,
   n.overlap = 10,
-  coord = NULL,
   k = 10,
-  rowmax = 0.5,
-  colmax = 0.8,
-  rng.seed = 362436069,
+  rowmax = 0.9,
+  colmax = 0.9,
+  cores = 1,
+  method = c("euclidean", "manhattan", "impute.knn"),
   .progress = FALSE,
   .parallel = FALSE
 )
 }
 \arguments{
-\item{obj}{A numeric matrix where rows represent features and columns represent samples.}
+\item{obj}{A numeric matrix with \strong{samples in rows} and \strong{features in columns}.}
 
-\item{n.feat}{Integer specifying the number of features (rows) per imputation window.}
+\item{n.feat}{Integer specifying the number of features (columns) in each window. Must be between 2 and the number of columns in \code{obj}.}
 
-\item{n.overlap}{Integer specifying the number of features of overlap
-between consecutive windows (default: 10).}
+\item{n.overlap}{Integer specifying the overlap between consecutive windows. Default is 10. Must be between 0 and \code{n.feat - 1}.}
 
-\item{coord}{Optional coordinate matrix (default: NULL). Currently unused in the function.}
+\item{k}{An integer specifying the number of nearest neighbors to use for
+imputation. Must be between 1 and the number of columns.}
 
-\item{k}{Number of neighbors to be used in the
-    imputation (default=10)}
+\item{rowmax}{A numeric value between 0 and 1. This is the maximum
+allowable proportion of missing values in any single row. If a row
+exceeds this threshold, the function will stop with an error.}
 
-\item{rowmax}{The maximum percent missing data allowed in any row
-    (default 50\%). For any rows with more than \code{rowmax}\% missing
-    are imputed using the overall mean per sample.}
+\item{colmax}{A numeric value between 0 and 1. This is the threshold for the
+proportion of missing values in a column. Columns exceeding this
+threshold will be imputed using the column mean instead of k-NN.}
 
-\item{colmax}{The maximum percent missing data allowed in any column
-    (default 80\%). If any column has more than \code{colmax}\% missing data,
-    the program halts and reports an error.}
+\item{cores}{Number of cores to parallelize calculations of distances over. Note: if .parallel is TRUE and cores = n, then each mirai::daemons() process will spawn n cores.}
 
-\item{rng.seed}{The seed used for the random number generator (default
-    362436069) for reproducibility.}
+\item{method}{A character string specifying the distance metric for k-NN.
+Acceptable values are `"euclidean"`, `"manhattan"`, or `"impute.knn"`.
+Defaults to `"euclidean"`. See [knn_imp()].}
 
-\item{.progress}{Whether to show a progress bar. Use \code{TRUE} to turn on
-a basic progress bar, use a string to give it a name, or see
-\link[purrr]{progress_bars} for more details.}
+\item{.progress}{Logical indicating whether to show a progress bar. Default is FALSE.}
 
-\item{.parallel}{Logical indicating whether to use parallel processing for imputation
-(default: FALSE). Requires the 'mirai' package if enabled.}
+\item{.parallel}{Logical indicating whether to use parallel processing for multiple windows. Default is FALSE.}
 }
 \value{
 A numeric matrix of the same dimensions as \code{obj} with missing values imputed.
 }
 \description{
-Performs rolling window KNN imputation on a matrix with missing values.
-The function divides the input matrix into overlapping windows along the rows,
-imputes each window using KNN imputation, and combines the results by averaging
-values in overlapping regions. Any remaining NA values are imputed with row means.
+Performs rolling window KNN imputation on a numeric matrix to handle missing values.
+The matrix is divided into overlapping windows, and imputation is applied to each window.
+Overlapping regions are averaged to produce the final imputed matrix.
 }
 \examples{
 \dontrun{
-# Example matrix with missing values
-set.seed(123)
-mat <- matrix(rnorm(100), nrow = 20, ncol = 5)
-mat[sample(100, 10)] <- NA
-imputed <- rknnim(mat, n.feat = 10, n.overlap = 2, k = 5)
+data(khanmiss1)
+imputed <- rknnim(t(khanmiss1), k = 10, n.feat = 100, n.overlap = 10)
 }
+
 }
