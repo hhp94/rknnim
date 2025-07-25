@@ -2,7 +2,7 @@
 % Please edit documentation in R/tune_rknnim.R
 \name{tune_rknnim}
 \alias{tune_rknnim}
-\title{Tune Parameters for rknnim Imputation}
+\title{Tune Parameters for [rknnim()]/[knn_imp()] Imputation}
 \usage{
 tune_rknnim(
   obj,
@@ -10,19 +10,18 @@ tune_rknnim(
   rep = 1,
   num_na = 100,
   max_iter = 1000,
-  coord = NULL,
-  rowmax = 0.5,
-  colmax = 0.8,
-  rng.seed = 362436069,
+  rowmax = 0.9,
+  colmax = 0.9,
   verbose = TRUE,
+  cores = 1,
   .parallel = FALSE
 )
 }
 \arguments{
-\item{obj}{A numeric matrix where rows represent features and columns represent samples.}
+\item{obj}{A numeric matrix with \strong{samples in rows} and \strong{features in columns}.}
 
 \item{parameters}{A data frame specifying the parameter combinations to tune. Must include columns
-`n.feat`, `k`, and `n.overlap`. Duplicate rows are automatically removed.}
+`n.feat`, `k`, `n.overlap` and `method`. Duplicate rows are automatically removed.}
 
 \item{rep}{The number of repetitions for injecting missing values and evaluating parameters.
 Default is 1.}
@@ -31,23 +30,19 @@ Default is 1.}
 
 \item{max_iter}{Maximum number of iterations to attempt finding valid NA positions (default: 1000).}
 
-\item{coord}{Optional coordinate matrix (default: NULL). Currently unused in the function.}
+\item{rowmax}{A numeric value between 0 and 1. This is the maximum
+allowable proportion of missing values in any single row. If a row
+exceeds this threshold, the function will stop with an error.}
 
-\item{rowmax}{The maximum percent missing data allowed in any row
-    (default 50\%). For any rows with more than \code{rowmax}\% missing
-    are imputed using the overall mean per sample.}
-
-\item{colmax}{The maximum percent missing data allowed in any column
-    (default 80\%). If any column has more than \code{colmax}\% missing data,
-    the program halts and reports an error.}
-
-\item{rng.seed}{The seed used for the random number generator (default
-    362436069) for reproducibility.}
+\item{colmax}{A numeric value between 0 and 1. This is the threshold for the
+proportion of missing values in a column. Columns exceeding this
+threshold will be imputed using the column mean instead of k-NN.}
 
 \item{verbose}{Print out progress? Default is TRUE.}
 
-\item{.parallel}{Logical indicating whether to use parallel processing for imputation
-(default: FALSE). Requires the 'mirai' package if enabled.}
+\item{cores}{Number of cores to parallelize calculations of distances over. Note: if .parallel is TRUE and cores = n, then each mirai::daemons() process will spawn n cores.}
+
+\item{.parallel}{Logical indicating whether to use parallel processing for multiple windows. Default is FALSE.}
 }
 \value{
 A tibble containing the tuning results. Each row corresponds to a specific repetition and
@@ -55,15 +50,15 @@ A tibble containing the tuning results. Each row corresponds to a specific repet
   \itemize{
     \item `rep`: The repetition number.
     \item `param_id`: The ID of the parameter combination.
-    \item `n.feat`, `k`, `n.overlap`: The parameter values used.
+    \item `n.feat`, `k`, `n.overlap`, `method`: The parameter values used.
     \item `result`: A nested tibble with columns `truth` (original values) and `estimate`
       (imputed values) for the injected NAs.
   }
 }
 \description{
-This function tunes the parameters for the `rknnim` imputation method by injecting missing values
+This function tunes the parameters for the [rknnim()]/[knn_imp()] imputation method by injecting missing values
 into the dataset multiple times and evaluating the imputation performance for different parameter
-combinations.
+combinations. Set \code{n.feat = ncol(obj)} and \code{n.overlap = 0} to tune [knn_imp()]
 }
 \examples{
 \dontrun{
@@ -72,8 +67,12 @@ data(khanmiss1)
 parameters <- dplyr::tibble(
   n.feat = c(100, 100, 100),
   k = c(5, 10, 10),
-  n.overlap = c(10, 10, 10)
+  n.overlap = c(10, 10, 10),
+  method = "euclidean"
 )
+
+set.seed(1234)
+
 results <- tune_rknnim(
   khanmiss1,
   parameters,

@@ -4,20 +4,20 @@
 \alias{inject_na}
 \title{Inject NA Values into a Matrix}
 \usage{
-inject_na(obj, num_na = 100, rowmax = 0.5, colmax = 0.8, max_iter = 1000)
+inject_na(obj, num_na = 100, rowmax = 0.9, colmax = 0.9, max_iter = 1000)
 }
 \arguments{
-\item{obj}{A numeric matrix where rows represent features and columns represent samples.}
+\item{obj}{A numeric matrix with \strong{samples in rows} and \strong{features in columns}.}
 
 \item{num_na}{The number of missing values used to estimate prediction quality. Must be a positive integer.}
 
-\item{rowmax}{The maximum percent missing data allowed in any row
-    (default 50\%). For any rows with more than \code{rowmax}\% missing
-    are imputed using the overall mean per sample.}
+\item{rowmax}{A numeric value between 0 and 1. This is the maximum
+allowable proportion of missing values in any single row. If a row
+exceeds this threshold, the function will stop with an error.}
 
-\item{colmax}{The maximum percent missing data allowed in any column
-    (default 80\%). If any column has more than \code{colmax}\% missing data,
-    the program halts and reports an error.}
+\item{colmax}{A numeric value between 0 and 1. This is the threshold for the
+proportion of missing values in a column. Columns exceeding this
+threshold will be imputed using the column mean instead of k-NN.}
 
 \item{max_iter}{Maximum number of iterations to attempt finding valid NA positions (default: 1000).}
 }

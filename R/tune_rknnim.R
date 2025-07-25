@@ -6,7 +6,6 @@
 #'
 #' @inheritParams rknnim
 #' @param num_na The number of missing values used to estimate prediction quality. Must be a positive integer.
-#' @inheritParams impute::impute.knn
 #' @param max_iter Maximum number of iterations to attempt finding valid NA positions (default: 1000).
 #'
 #' @return A vector of integer indices indicating the positions in the matrix
@@ -28,8 +27,8 @@
 inject_na <- function(
     obj,
     num_na = 100,
-    rowmax = 0.5,
-    colmax = 0.8,
+    rowmax = 0.9,
+    colmax = 0.9,
     max_iter = 1000) {
   checkmate::assert_number(colmax, lower = 0, upper = 1)
   checkmate::assert_number(rowmax, lower = 0, upper = 1)
@@ -79,15 +78,15 @@ inject_na <- function(
   return(na_loc)
 }
 
-#' Tune Parameters for rknnim Imputation
+#' Tune Parameters for [rknnim()]/[knn_imp()] Imputation
 #'
-#' This function tunes the parameters for the `rknnim` imputation method by injecting missing values
+#' This function tunes the parameters for the [rknnim()]/[knn_imp()] imputation method by injecting missing values
 #' into the dataset multiple times and evaluating the imputation performance for different parameter
-#' combinations.
+#' combinations. Set \code{n.feat = ncol(obj)} and \code{n.overlap = 0} to tune [knn_imp()]
 #'
 #' @inheritParams rknnim
 #' @param parameters A data frame specifying the parameter combinations to tune. Must include columns
-#'   `n.feat`, `k`, and `n.overlap`. Duplicate rows are automatically removed.
+#'   `n.feat`, `k`, `n.overlap` and `method`. Duplicate rows are automatically removed.
 #' @param rep The number of repetitions for injecting missing values and evaluating parameters.
 #'   Default is 1.
 #' @param verbose Print out progress? Default is TRUE.
@@ -98,7 +97,7 @@ inject_na <- function(
 #'   \itemize{
 #'     \item `rep`: The repetition number.
 #'     \item `param_id`: The ID of the parameter combination.
-#'     \item `n.feat`, `k`, `n.overlap`: The parameter values used.
+#'     \item `n.feat`, `k`, `n.overlap`, `method`: The parameter values used.
 #'     \item `result`: A nested tibble with columns `truth` (original values) and `estimate`
 #'       (imputed values) for the injected NAs.
 #'   }
@@ -110,8 +109,12 @@ inject_na <- function(
 #' parameters <- dplyr::tibble(
 #'   n.feat = c(100, 100, 100),
 #'   k = c(5, 10, 10),
-#'   n.overlap = c(10, 10, 10)
+#'   n.overlap = c(10, 10, 10),
+#'   method = "euclidean"
 #' )
+#'
+#' set.seed(1234)
+#'
 #' results <- tune_rknnim(
 #'   khanmiss1,
 #'   parameters,
@@ -142,11 +145,10 @@ tune_rknnim <- function(
     rep = 1,
     num_na = 100,
     max_iter = 1000,
-    coord = NULL,
-    rowmax = 0.5,
-    colmax = 0.8,
-    rng.seed = 362436069,
+    rowmax = 0.9,
+    colmax = 0.9,
     verbose = TRUE,
+    cores = 1,
     .parallel = FALSE) {
   checkmate::assert_data_frame(
     parameters,
@@ -156,9 +158,9 @@ tune_rknnim <- function(
   )
   checkmate::assert_count(rep, positive = TRUE)
   checkmate::assert_logical(verbose, any.missing = FALSE, len = 1)
-  stopifnot(all(c("n.feat", "k", "n.overlap") %in% names(parameters)))
+  stopifnot(all(c("n.feat", "k", "n.overlap", "method") %in% names(parameters)))
   # de-dup the parameter
-  parameters <- unique(subset(parameters, select = c("n.feat", "k", "n.overlap")))
+  parameters <- unique(subset(parameters, select = c("n.feat", "k", "n.overlap", "method")))
   na_loc <- replicate(
     n = rep,
     inject_na(
@@ -197,12 +199,12 @@ tune_rknnim <- function(
         n.feat = current_params$n.feat,
         k = current_params$k,
         n.overlap = current_params$n.overlap,
-        coord = coord,
+        method = current_params$method,
         rowmax = rowmax,
         colmax = colmax,
-        rng.seed = rng.seed,
         .progress = .progress,
-        .parallel = .parallel
+        .parallel = .parallel,
+        cores = cores
       )[na_loc[[i]]]
 
       # Result as nested tibble
