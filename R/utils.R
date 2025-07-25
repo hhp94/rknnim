@@ -41,6 +41,9 @@ sim_mat <- function(n = 100, m = 100, nchr = 2, ngrp = 1, perc_NA = 0.5, perc_co
     n > 1, m > 1, nchr >= 1, nchr <= 22,
     perc_NA >= 0, perc_NA <= 1, perc_col_NA >= 0, perc_col_NA <= 1
   )
+  if(!rlang::is_installed("matrixStats")) {
+    stop("sim_mat requires {matrixStats}, which can be installed with install.packages('matrixStats')")
+  }
 
   # Create and scale the matrix to between 0 and 1 per column
   d_length <- n * m

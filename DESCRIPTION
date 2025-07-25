@@ -16,21 +16,22 @@ LazyData: true
 Suggests: 
     matrixStats,
     testthat (>= 3.0.0),
-    yardstick
+    yardstick,
+    impute (>= 1.82.0),
+    stats
 Config/testthat/edition: 3
 RoxygenNote: 7.3.2
 LinkingTo: 
     Rcpp,
-    RcppArmadillo,
-    rcpptimer
+    RcppArmadillo
 Imports: 
     carrier,
     checkmate,
-    impute (>= 1.82.0),
     mirai,
     purrr,
     Rcpp,
-    tibble
+    tibble,
+    rlang
 Remotes: 
     bioc::release/impute
 Depends: 

@@ -11,68 +11,24 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// calc_distance_sqeuclid
-double calc_distance_sqeuclid(const arma::mat& obj, const arma::umat& miss, const arma::uword idx1, const arma::uword idx2, const double total_rows);
-RcppExport SEXP _rknnim_calc_distance_sqeuclid(SEXP objSEXP, SEXP missSEXP, SEXP idx1SEXP, SEXP idx2SEXP, SEXP total_rowsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type obj(objSEXP);
-    Rcpp::traits::input_parameter< const arma::umat& >::type miss(missSEXP);
-    Rcpp::traits::input_parameter< const arma::uword >::type idx1(idx1SEXP);
-    Rcpp::traits::input_parameter< const arma::uword >::type idx2(idx2SEXP);
-    Rcpp::traits::input_parameter< const double >::type total_rows(total_rowsSEXP);
-    rcpp_result_gen = Rcpp::wrap(calc_distance_sqeuclid(obj, miss, idx1, idx2, total_rows));
-    return rcpp_result_gen;
-END_RCPP
-}
-// distance_matrix
-arma::mat distance_matrix(const arma::mat& obj, const arma::umat& miss, const arma::uvec& index_miss, const arma::uvec& index_not_miss, const int method);
-RcppExport SEXP _rknnim_distance_matrix(SEXP objSEXP, SEXP missSEXP, SEXP index_missSEXP, SEXP index_not_missSEXP, SEXP methodSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type obj(objSEXP);
-    Rcpp::traits::input_parameter< const arma::umat& >::type miss(missSEXP);
-    Rcpp::traits::input_parameter< const arma::uvec& >::type index_miss(index_missSEXP);
-    Rcpp::traits::input_parameter< const arma::uvec& >::type index_not_miss(index_not_missSEXP);
-    Rcpp::traits::input_parameter< const int >::type method(methodSEXP);
-    rcpp_result_gen = Rcpp::wrap(distance_matrix(obj, miss, index_miss, index_not_miss, method));
-    return rcpp_result_gen;
-END_RCPP
-}
-// find_knn_indices_arma
-arma::uvec find_knn_indices_arma(const arma::vec& distances, arma::uword k);
-RcppExport SEXP _rknnim_find_knn_indices_arma(SEXP distancesSEXP, SEXP kSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::vec& >::type distances(distancesSEXP);
-    Rcpp::traits::input_parameter< arma::uword >::type k(kSEXP);
-    rcpp_result_gen = Rcpp::wrap(find_knn_indices_arma(distances, k));
-    return rcpp_result_gen;
-END_RCPP
-}
-// impute_knn_arma
-arma::mat impute_knn_arma(const arma::mat& obj, const arma::umat& miss, const arma::uword k, const int method);
-RcppExport SEXP _rknnim_impute_knn_arma(SEXP objSEXP, SEXP missSEXP, SEXP kSEXP, SEXP methodSEXP) {
+// impute_knn_naive
+arma::mat impute_knn_naive(const arma::mat& obj, const arma::umat& miss, const arma::uword k, const arma::uvec n_col_miss, const int method);
+RcppExport SEXP _rknnim_impute_knn_naive(SEXP objSEXP, SEXP missSEXP, SEXP kSEXP, SEXP n_col_missSEXP, SEXP methodSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const arma::mat& >::type obj(objSEXP);
     Rcpp::traits::input_parameter< const arma::umat& >::type miss(missSEXP);
     Rcpp::traits::input_parameter< const arma::uword >::type k(kSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec >::type n_col_miss(n_col_missSEXP);
     Rcpp::traits::input_parameter< const int >::type method(methodSEXP);
-    rcpp_result_gen = Rcpp::wrap(impute_knn_arma(obj, miss, k, method));
+    rcpp_result_gen = Rcpp::wrap(impute_knn_naive(obj, miss, k, n_col_miss, method));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_rknnim_calc_distance_sqeuclid", (DL_FUNC) &_rknnim_calc_distance_sqeuclid, 5},
-    {"_rknnim_distance_matrix", (DL_FUNC) &_rknnim_distance_matrix, 5},
-    {"_rknnim_find_knn_indices_arma", (DL_FUNC) &_rknnim_find_knn_indices_arma, 2},
-    {"_rknnim_impute_knn_arma", (DL_FUNC) &_rknnim_impute_knn_arma, 4},
+    {"_rknnim_impute_knn_naive", (DL_FUNC) &_rknnim_impute_knn_naive, 5},
     {NULL, NULL, 0}
 };
 
